@@ -1,0 +1,16 @@
+name: backend_app_tro
+description: A server app using package:shelf.
+version: 1.0.0
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  shelf: ^1.4.0
+  shelf_router: ^1.0.0
+  mysql_client: 0.0.27 
+  http: ^0.13.0
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0
