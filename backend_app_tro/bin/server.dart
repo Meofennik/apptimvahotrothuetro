@@ -22,7 +22,7 @@ void main() async {
 
   // Route mặc định để kiểm tra server
   router.get('/', (Request request) {
-    return Response.ok('Server App Tim Tro Gia Lam dang hoat dong!');
+    return Response.ok('Server App Tim Tro dang hoat dong!');
   });
 
   // API 1: Lay danh sach tro 

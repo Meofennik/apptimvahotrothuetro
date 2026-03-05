@@ -1,0 +1,5 @@
+{
+    "github.copilot.chat.localeOverride": "vi",
+    "github.copilot.editor.enableAutoCompletions": true,
+    "github.copilot.chat.welcomeMessage": "Chào mừng bạn đến với Copilot Chat! Hãy hỏi tôi bất cứ điều gì hoặc yêu cầu trợ giúp về mã của bạn."
+}
