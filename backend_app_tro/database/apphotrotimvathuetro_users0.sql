@@ -16,31 +16,33 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `amenities`
+-- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `amenities`;
+DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `amenities` (
+CREATE TABLE `users` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `room_id` int DEFAULT NULL,
-  `has_wifi` tinyint(1) DEFAULT '0',
-  `has_air_con` tinyint(1) DEFAULT '0',
-  `has_parking` tinyint(1) DEFAULT '0',
+  `fullname` varchar(100) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `avatar` varchar(255) DEFAULT 'https://ui-avatars.com/api/?name=User&background=4CAF50&color=fff',
+  `zalo_id` varchar(100) DEFAULT NULL,
+  `fb_id` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `room_id` (`room_id`),
-  CONSTRAINT `amenities_ibfk_1` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`)
+  UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `amenities`
+-- Dumping data for table `users`
 --
 
-LOCK TABLES `amenities` WRITE;
-/*!40000 ALTER TABLE `amenities` DISABLE KEYS */;
-/*!40000 ALTER TABLE `amenities` ENABLE KEYS */;
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -52,4 +54,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-05 23:45:38
+-- Dump completed on 2026-03-05 23:54:41
