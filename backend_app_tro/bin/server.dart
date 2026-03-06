@@ -25,7 +25,7 @@ void main() async {
     return Response.ok('Server App Tim Tro Gia Lam dang hoat dong!');
   });
 
-  // API 1: Lay danh sach tro (Kem 1 anh dai dien cho thanh vien 2)
+  // API 1: Lay danh sach tro )
   router.get('/api/rooms', (Request request) async {
     final conn = await getDbConnection();
     // Truy vấn lấy thông tin phòng và 1 ảnh đầu tiên từ bảng room_images
