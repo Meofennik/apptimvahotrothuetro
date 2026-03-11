@@ -9,8 +9,8 @@ Future<MySQLConnection> getDbConnection() async {
   final conn = await MySQLConnection.createConnection(
     host: "127.0.0.1", 
     port: 3306,
-    userName: "root", // Kiểm tra lại nếu bạn có đặt mật khẩu trong MySQL Workbench
-    password: "", 
+    userName: "root",
+    password: "161205", 
     databaseName: "apphotrotimvathuetro", 
   );
   await conn.connect();
@@ -22,10 +22,10 @@ void main() async {
 
   // Route mặc định: Kiểm tra Server sống
   router.get('/', (Request request) {
-    return Response.ok('Server App Tim Tro Gia Lam dang hoat dong!');
+    return Response.ok('Server App Tim Tro dang hoat dong!');
   });
 
-  // API 1: Lay danh sach tro (Kem 1 anh dai dien cho thanh vien 2)
+  // API 1: Lay danh sach tro 
   router.get('/api/rooms', (Request request) async {
     final conn = await getDbConnection();
     // Truy vấn lấy thông tin phòng và 1 ảnh đầu tiên từ bảng room_images
