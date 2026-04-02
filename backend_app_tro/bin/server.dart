@@ -4,14 +4,15 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
-// 1. Hàm dùng chung để kết nối Database apphotrotimvathuetro
+// 1. Kết nối Database
 Future<MySQLConnection> getDbConnection() async {
   final conn = await MySQLConnection.createConnection(
-    host: "127.0.0.1", 
+    host: "127.0.0.1",
     port: 3306,
     userName: "root",
-    password: "161205", 
-    databaseName: "apphotrotimvathuetro", 
+    password: "",
+    databaseName: "apphotrotimvathuetro",
+    secure: false,
   );
   await conn.connect();
   return conn;
@@ -20,15 +21,60 @@ Future<MySQLConnection> getDbConnection() async {
 void main() async {
   final router = Router();
 
-  // Route mặc định: Kiểm tra Server sống
-  router.get('/', (Request request) {
-    return Response.ok('Server App Tim Tro dang hoat dong!');
+  // Route kiểm tra Server
+router.post('/api/register', (Request request) async {
+  try {
+    final payload = jsonDecode(await request.readAsString());
+    final conn = await getDbConnection();
+    
+    // In ra để kiểm tra xem Server đã nhận được dữ liệu chưa
+    print("Nhan du lieu dang ky: ${payload['email']}");
+
+    await conn.execute(
+      "INSERT INTO users (fullname, email, password, avatar) VALUES (:f, :e, :p, :a)",
+      {
+        "f": payload['fullname'],
+        "e": payload['email'],
+        "p": payload['password'],
+        "a": payload['avatar'] ?? "",
+      },
+    );
+    await conn.close();
+    return Response(200, body: jsonEncode({"message": "OK"}), headers: {'Content-Type': 'application/json'});
+  } catch (e) {
+    print("Loi MySQL thuc su: $e"); // XEM DÒNG NÀY Ở TERMINAL
+    return Response.internalServerError(body: jsonEncode({"error": e.toString()}));
+  }
+});
+
+  // API Đăng nhập [Khớp với LoginScreen]
+  router.post('/api/login', (Request request) async {
+    try {
+      final payload = jsonDecode(await request.readAsString());
+      final conn = await getDbConnection();
+      
+      final result = await conn.execute(
+        "SELECT id, fullname, email, avatar FROM users WHERE email = :e AND password = :p",
+        {"e": payload['email'], "p": payload['password']},
+      );
+      
+      await conn.close();
+      if (result.rows.isNotEmpty) {
+        return Response.ok(jsonEncode({
+          "status": "success", 
+          "user": result.rows.first.assoc()
+        }), headers: {'Content-Type': 'application/json'});
+      } else {
+        return Response.forbidden(jsonEncode({"status": "error", "message": "Sai tai khoan hoac mat khau"}));
+      }
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({"error": e.toString()}));
+    }
   });
 
-  // API 1: Lay danh sach tro 
+  // API Lấy danh sách trọ (Có ảnh thumbnail)
   router.get('/api/rooms', (Request request) async {
     final conn = await getDbConnection();
-    // Truy vấn lấy thông tin phòng và 1 ảnh đầu tiên từ bảng room_images
     final result = await conn.execute("""
       SELECT r.*, 
       (SELECT image_url FROM room_images WHERE room_id = r.id LIMIT 1) as thumbnail 
@@ -40,28 +86,14 @@ void main() async {
     return Response.ok(jsonEncode(rooms), headers: {'Content-Type': 'application/json'});
   });
 
-  // API 2: Lay chi tiet tat ca anh cua 1 phong (Cho man hinh Chi tiet)
-  router.get('/api/rooms/<id>/images', (Request request, String id) async {
-    final conn = await getDbConnection();
-    final result = await conn.execute(
-      "SELECT image_url FROM room_images WHERE room_id = :id", 
-      {"id": id}
-    );
-    
-    final images = result.rows.map((row) => row.assoc()['image_url']).toList();
-    await conn.close();
-    return Response.ok(jsonEncode(images), headers: {'Content-Type': 'application/json'});
-  });
-
-  // API 3: Dang tin tro moi (Nhan Link tu Cloudinary va luu vao MySQL)
+  // API Thêm phòng trọ mới (Nhận link từ Cloudinary)
   router.post('/api/add-room', (Request request) async {
     final payload = jsonDecode(await request.readAsString());
     final conn = await getDbConnection();
 
-    // Bước 1: Luu thong tin chu vao bang rooms
+    // Bước 1: Lưu thông tin vào bảng rooms
     final roomResult = await conn.execute(
-      "INSERT INTO rooms (user_id, title, price, address, description) "
-      "VALUES (:uid, :t, :p, :a, :d)",
+      "INSERT INTO rooms (user_id, title, price, address, description) VALUES (:uid, :t, :p, :a, :d)",
       {
         'uid': payload['user_id'],
         't': payload['title'],
@@ -70,48 +102,22 @@ void main() async {
         'd': payload['description'],
       },
     );
-    final roomId = roomResult.lastInsertID;
-
-    // Bước 2: Luu danh sach Link anh vao bang room_images
+    
+    // Bước 2: Lưu danh sách ảnh
     if (payload['images'] != null && payload['images'] is List) {
-      final List<dynamic> imgs = payload['images'];
-      for (var url in imgs) {
+      for (var url in payload['images']) {
         await conn.execute(
           "INSERT INTO room_images (room_id, image_url) VALUES (:rid, :url)",
-          {'rid': roomId, 'url': url},
+          {'rid': roomResult.lastInsertID, 'url': url},
         );
       }
     }
 
     await conn.close();
-    return Response.ok(
-      jsonEncode({"message": "Dang tin thanh cong!", "room_id": roomId}),
-      headers: {'Content-Type': 'application/json'}
-    );
+    return Response.ok(jsonEncode({"message": "Dang tin thanh cong!"}));
   });
 
-  // API 4: Dang ky tai khoan moi
-  router.post('/api/register', (Request request) async {
-    final payload = jsonDecode(await request.readAsString());
-
-    // Nếu không có avatar, dùng link mặc định giống Facebook
-    String avatarUrl = payload['avatar'] ?? "https://www.gstatic.com/images/branding/product/2x/avatar_anonymous_96x96dp.png";
-
-    final conn = await getDbConnection();
-    await conn.execute(
-      "INSERT INTO users (fullname, email, password, avatar) VALUES (:f, :e, :p, :a)",
-      {
-        "f": payload['fullname'],
-        "e": payload['email'],
-        "p": payload['password'],
-        "a": avatarUrl
-      }
-    );
-    await conn.close();
-    return Response.ok(jsonEncode({"message": "Dang ky thanh cong!"}));
-  });
-
-  // 3. Khoi chay server tai cong 8080
+  // Khởi chạy Server
   final server = await shelf_io.serve(router, '0.0.0.0', 8080);
   print('Backend dang chay tai http://${server.address.host}:${server.port}');
 }

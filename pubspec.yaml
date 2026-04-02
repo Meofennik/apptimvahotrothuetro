@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   cloudinary_public: ^0.23.1
   image_picker: ^1.0.4
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
