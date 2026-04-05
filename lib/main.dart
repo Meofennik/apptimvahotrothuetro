@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'Screens/WelcomeScreen.dart';
 import 'Screens/LoginScreen.dart';
 import 'Screens/RegisterScreen.dart';
-import 'Screens/HomePageScreen.dart'; // Import cái file có giao diện Grid của bạn
+import 'Screens/HomePageScreen.dart'; 
 
 void main() => runApp(const MyApp());
 
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomePageScreen(), // Gọi đúng cái file đã tách
+        '/home': (context) => const HomePageScreen(),
       },
     );
   }

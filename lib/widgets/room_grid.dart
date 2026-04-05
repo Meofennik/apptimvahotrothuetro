@@ -7,7 +7,7 @@ import 'room_card.dart';
 class RoomGrid extends StatelessWidget {
   const RoomGrid({super.key});
 
-  // Hàm lấy dữ liệu giữ nguyên logic của bạn
+  // Hàm lấy dữ liệu từ API
   Future<List<RoomModel>> fetchRooms() async {
     final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/rooms'));
     if (response.statusCode == 200) {

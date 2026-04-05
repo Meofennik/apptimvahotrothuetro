@@ -23,13 +23,13 @@ class RoomCard extends StatelessWidget {
       child: Column( // Sử dụng Column để xếp ảnh trên, chữ dưới
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Hình ảnh trọ (Đưa ra ngoài Padding để tràn viền)
+          // 1. Hình ảnh trọ
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Image.network(
               imageUrl,
               width: double.infinity,
-              height: 120, // Cố định chiều cao để các Card đều nhau
+              height: 120,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
                 width: double.infinity,
@@ -40,7 +40,7 @@ class RoomCard extends StatelessWidget {
             ),
           ),
 
-          // 2. Chi tiết tin đăng (Cho vào Padding riêng để chữ không sát mép)
+          // 2. Chi tiết tin đăng
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Column(
@@ -50,7 +50,7 @@ class RoomCard extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 14, // Giảm nhẹ size cho khớp lưới 2 cột
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 2,
@@ -62,7 +62,7 @@ class RoomCard extends StatelessWidget {
                 Text(
                   price,
                   style: const TextStyle(
-                    color: Colors.red, // Đổi sang màu đỏ cho giống mẫu bạn gửi
+                    color: Colors.red,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),

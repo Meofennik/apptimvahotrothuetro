@@ -12,7 +12,7 @@ class HomePageScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
-          // 1. Header (Đã tách ra file riêng)
+          // 1. Header
           const HomeHeader(),
 
           Expanded(
@@ -20,13 +20,13 @@ class HomePageScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 2. Danh mục (Đã tách ra file riêng)
+                  // 2. Danh mục
                   const CategoryList(),
 
                   // 3. Tiêu đề phần tin đăng
                   _buildSectionTitle(context),
 
-                  // 4. Lưới phòng trọ (Đã tách ra file riêng)
+                  // 4. Lưới phòng trọ
                   const RoomGrid(), 
                 ],
               ),
@@ -38,7 +38,7 @@ class HomePageScreen extends StatelessWidget {
     );
   }
 
-  // Tiêu đề: Tin đăng mới nhất
+  // Tiêu đề
   Widget _buildSectionTitle(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(15.0),
