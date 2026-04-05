@@ -45,7 +45,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Future<List<RoomModel>> fetchRooms() async {
-    // Lưu ý: 10.0.2.2 dành cho máy ảo Android kết nối về localhost máy Leader (Asus G14)
+    // Lưu ý: 10.0.2.2 dành cho máy ảo Android kết nối về localhost máy Leader 
     final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/rooms'));
 
     if (response.statusCode == 200) {
