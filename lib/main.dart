@@ -3,6 +3,7 @@ import 'Screens/welcome_screen.dart';
 import 'Screens/login_screen.dart';
 import 'Screens/register_screen.dart';
 import 'Screens/homepage_screen.dart'; 
+import 'Screens/dangtin_screen.dart';
 
 void main() => runApp(const MyApp());
 

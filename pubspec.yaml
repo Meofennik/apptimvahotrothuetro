@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  dotted_border: ^2.1.0
+  font_awesome_flutter: ^10.7.0
   shelf: ^1.4.0
   shelf_router: ^1.1.0
 
@@ -39,6 +41,7 @@ dependencies:
   cloudinary_public: ^0.23.1
   image_picker: ^1.0.4
   http: ^1.1.0
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
