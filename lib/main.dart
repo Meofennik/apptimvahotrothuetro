@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'Screens/welcome_screen.dart';
+import 'Screens/login_screen.dart';
+import 'Screens/register_screen.dart';
+import 'Screens/homepage_screen.dart';
 import 'models/room_model.dart';
-import 'widgets/room_card.dart';
-// Import các màn hình mới của bạn
-import 'Screens/WelcomeScreen.dart';
-import 'Screens/LoginScreen.dart';
-import 'Screens/RegisterScreen.dart';
+import 'widgets/room_card.dart'; 
 
 void main() => runApp(const MyApp());
 
@@ -20,17 +20,13 @@ class MyApp extends StatelessWidget {
       title: 'Tìm và thuê trọ',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        // Màu xanh chủ đạo từ thiết kế của bạn
-        primaryColor: const Color(0xFF32D74B), 
+        primaryColor: const Color(0xFF37DD63), 
       ),
-      // Thay đổi điểm bắt đầu ứng dụng thành WelcomeScreen
       home: const WelcomeScreen(), 
-      
-      // Định nghĩa routes để dễ dàng quản lý điều hướng
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => const HomePageScreen(),
       },
     );
   }
@@ -91,4 +87,5 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
 }

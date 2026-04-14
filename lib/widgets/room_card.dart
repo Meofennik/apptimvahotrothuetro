@@ -17,80 +17,76 @@ class RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-      elevation: 4, 
+      margin: const EdgeInsets.all(4.0), // Margin nhỏ để Grid cân đối
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Hình ảnh trọ
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: Image.network(
-                imageUrl,
-                width: 110,
-                height: 110,
-                fit: BoxFit.cover,
-                // Xử lý lỗi ảnh 
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 110,
-                  height: 110,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      child: Column( // Sử dụng Column để xếp ảnh trên, chữ dưới
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Hình ảnh trọ
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 120,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: double.infinity,
+                height: 120,
+                color: Colors.grey[200],
+                child: const Icon(Icons.home, color: Colors.grey, size: 40),
+              ),
+            ),
+          ),
+
+          // 2. Chi tiết tin đăng
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tiêu đề
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            
-            // 2. Chi tiết tin đăng
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tiêu đề trọ
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 6),
+
+                // Giá tiền
+                Text(
+                  price,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  
-                  // Giá tiền 
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      color: Color(0xFF4CAF50),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // Địa chỉ & Icon 
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          address,
-                          style: const TextStyle(color: Colors.grey, fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                ),
+                const SizedBox(height: 6),
+
+                // Địa chỉ & Icon 
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 12, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        address,
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
