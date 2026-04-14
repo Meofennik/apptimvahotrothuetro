@@ -1,123 +1,119 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:cloudinary/cloudinary.dart' as cloud;
 import 'package:mysql_client/mysql_client.dart';
-import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:dotenv/dotenv.dart'; // Import thư viện dotenv
 
-// 1. Kết nối Database
+final _jsonHeaders = {'Content-Type': 'application/json; charset=utf-8'};
+
+// Khởi tạo Cloudinary
+late final cloud.Cloudinary _cloudinary;
+
 Future<MySQLConnection> getDbConnection() async {
-  final conn = await MySQLConnection.createConnection(
-    host: "127.0.0.1",
-    port: 3306,
-    userName: "root",
-    password: "",
-    databaseName: "apphotrotimvathuetro",
-    secure: false,
-  );
-  await conn.connect();
-  return conn;
+  print("⌛ Đang thử kết nối MySQL (XAMPP)...");
+  try {
+    final conn = await MySQLConnection.createConnection(
+      host: "127.0.0.1",
+      port: 3306,
+      userName: "root",
+      password: "",
+      databaseName: "apphotrotimvathuetro",
+      secure: false,
+    );
+    await conn.connect();
+    return conn;
+  } catch (e) {
+    print("❌ LỖI KẾT NỐI MYSQL: $e");
+    rethrow;
+  }
 }
 
 void main() async {
+  // 1. KHỞI TẠO ĐỐI TƯỢNG DOTENV
+  final env = DotEnv(); 
+
+  try {
+    final envFile = File('cloudinary.env');
+
+    if (!envFile.existsSync()) {
+      print("❌ Lỗi: Không tìm thấy file cloudinary.env");
+      exit(1);
+    }
+
+    // 2. LOAD FILE THÔNG QUA ĐỐI TƯỢNG env
+    env.load(['cloudinary.env']); 
+    print("✅ Đã load file cloudinary.env thành công");
+  } catch (e) {
+    print("❌ Lỗi khi load file cloudinary.env: $e");
+    exit(1);
+  }
+
+  // 3. TRUY XUẤT BIẾN TỪ ĐỐI TƯỢNG env (Sửa các lỗi gạch đỏ)
+  final cloudName = env['CLOUDINARY_CLOUD_NAME'];
+  final apiKey = env['CLOUDINARY_API_KEY'];
+  final apiSecret = env['CLOUDINARY_API_SECRET'];
+ 
+  if (cloudName == null || cloudName.isEmpty) {
+    print("❌ Lỗi: CLOUDINARY_CLOUD_NAME không có trong file env");
+    exit(1);
+  }
+
+  _cloudinary = cloud.Cloudinary.signedConfig(
+    apiKey: apiKey ?? "",
+    apiSecret: apiSecret ?? "",
+    cloudName: cloudName,
+  );
+
+  print("🚀 Cloudinary đã sẵn sàng - Cloud: $cloudName");
+
   final router = Router();
 
-  // Route kiểm tra Server
-router.post('/api/register', (Request request) async {
-  try {
-    final payload = jsonDecode(await request.readAsString());
-    final conn = await getDbConnection();
-    
-    // In ra để kiểm tra xem Server đã nhận được dữ liệu chưa
-    print("Nhan du lieu dang ky: ${payload['email']}");
-
-    await conn.execute(
-      "INSERT INTO users (fullname, email, password, avatar) VALUES (:f, :e, :p, :a)",
-      {
-        "f": payload['fullname'],
-        "e": payload['email'],
-        "p": payload['password'],
-        "a": payload['avatar'] ?? "",
-      },
-    );
-    await conn.close();
-    return Response(200, body: jsonEncode({"message": "OK"}), headers: {'Content-Type': 'application/json'});
-  } catch (e) {
-    print("Loi MySQL thuc su: $e"); // XEM DÒNG NÀY Ở TERMINAL
-    return Response.internalServerError(body: jsonEncode({"error": e.toString()}));
-  }
-});
-
-  // API Đăng nhập [Khớp với LoginScreen]
-  router.post('/api/login', (Request request) async {
+  // API Đăng ký
+  router.post('/api/register', (shelf.Request request) async {
     try {
       final payload = jsonDecode(await request.readAsString());
       final conn = await getDbConnection();
-      
-      final result = await conn.execute(
-        "SELECT id, fullname, email, avatar FROM users WHERE email = :e AND password = :p",
-        {"e": payload['email'], "p": payload['password']},
+      await conn.execute(
+        "INSERT INTO users (fullname, email, password) VALUES (:f, :e, :p)",
+        {
+          "f": payload['fullname'],
+          "e": payload['email'],
+          "p": payload['password']
+        },
       );
-      
       await conn.close();
-      if (result.rows.isNotEmpty) {
-        return Response.ok(jsonEncode({
-          "status": "success", 
-          "user": result.rows.first.assoc()
-        }), headers: {'Content-Type': 'application/json'});
-      } else {
-        return Response.forbidden(jsonEncode({"status": "error", "message": "Sai tai khoan hoac mat khau"}));
-      }
+      return shelf.Response.ok(jsonEncode({"message": "OK"}),
+          headers: _jsonHeaders);
     } catch (e) {
-      return Response.internalServerError(body: jsonEncode({"error": e.toString()}));
+      return shelf.Response.internalServerError(
+          body: jsonEncode({"error": e.toString()}), headers: _jsonHeaders);
     }
   });
 
-  // API Lấy danh sách trọ (Có ảnh thumbnail)
-  router.get('/api/rooms', (Request request) async {
-    final conn = await getDbConnection();
-    final result = await conn.execute("""
-      SELECT r.*, 
-      (SELECT image_url FROM room_images WHERE room_id = r.id LIMIT 1) as thumbnail 
-      FROM rooms r ORDER BY r.created_at DESC
-    """);
-    
-    final rooms = result.rows.map((row) => row.assoc()).toList();
-    await conn.close();
-    return Response.ok(jsonEncode(rooms), headers: {'Content-Type': 'application/json'});
-  });
+  // API Đăng tin PRO 
+  router.post('/api/add_room_pro', (shelf.Request request) async {
+    try {
+      final payload = jsonDecode(await request.readAsString());
+      final imageBytes = base64Decode(payload['image_base64']);
 
-  // API Thêm phòng trọ mới (Nhận link từ Cloudinary)
-  router.post('/api/add-room', (Request request) async {
-    final payload = jsonDecode(await request.readAsString());
-    final conn = await getDbConnection();
+      final response = await _cloudinary.upload(
+        fileBytes: imageBytes,
+        fileName: 'room_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        folder: "room_images",
+        resourceType: cloud.CloudinaryResourceType.image,
+      );
 
-    // Bước 1: Lưu thông tin vào bảng rooms
-    final roomResult = await conn.execute(
-      "INSERT INTO rooms (user_id, title, price, address, description) VALUES (:uid, :t, :p, :a, :d)",
-      {
-        'uid': payload['user_id'],
-        't': payload['title'],
-        'p': payload['price'],
-        'a': payload['address'],
-        'd': payload['description'],
-      },
-    );
-    
-    // Bước 2: Lưu danh sách ảnh
-    if (payload['images'] != null && payload['images'] is List) {
-      for (var url in payload['images']) {
-        await conn.execute(
-          "INSERT INTO room_images (room_id, image_url) VALUES (:rid, :url)",
-          {'rid': roomResult.lastInsertID, 'url': url},
-        );
-      }
+      return shelf.Response.ok(jsonEncode({"imageUrl": response.secureUrl}),
+          headers: _jsonHeaders);
+    } catch (e) {
+      return shelf.Response.internalServerError(
+          body: jsonEncode({"error": e.toString()}), headers: _jsonHeaders);
     }
-
-    await conn.close();
-    return Response.ok(jsonEncode({"message": "Dang tin thanh cong!"}));
   });
 
-  // Khởi chạy Server
   final server = await shelf_io.serve(router, '0.0.0.0', 8080);
-  print('Backend dang chay tai http://${server.address.host}:${server.port}');
+  print('🚀 BACKEND ĐANG CHẠY TẠI HTTP://${server.address.host}:${server.port}');
 }

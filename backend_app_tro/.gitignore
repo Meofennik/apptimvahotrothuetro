@@ -1,3 +1,9 @@
 # https://dart.dev/guides/libraries/private-files
 # Created by `dart pub`
+cloudinary.env
 .dart_tool/
+
+# Environment variables
+.env
+.env.local
+.env.*.local

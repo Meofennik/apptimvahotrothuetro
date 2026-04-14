@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:apptimvahotrothuetro/Screens/login_screen.dart';
+import '../services/register_services.dart'; 
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,81 +10,64 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // 1. Khai báo các Controller để lấy dữ liệu từ TextField [Bài 7]
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
-
+  
+  bool _isLoading = false; 
   final Color primaryGreen = const Color(0xFF32D74B);
 
-  // 2. Hàm xử lý đăng ký kết nối Backend
-  Future<void> registerUser() async {
+  // Hàm xử lý khi nút Đăng ký được nhấn
+  Future<void> _handleRegister() async {
     if (_nameController.text.isEmpty || _emailController.text.isEmpty || _passController.text.isEmpty) {
-      _showDialog("Vui lòng nhập đầy đủ thông tin!");
+      _showErrorDialog("Vui lòng nhập đầy đủ thông tin!");
       return;
     }
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2:8080/api/register'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'fullname': _nameController.text,
-          'email': _emailController.text,
-          'password': _passController.text,
-        }),
-      );
+    setState(() { _isLoading = true; });
 
-      if (response.statusCode == 200) {
-        // Đăng ký thành công -> Quay lại Login
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-      } else {
-        _showDialog("Đăng ký thất bại. Email có thể đã tồn tại!");
-      }
-    } catch (e) {
-      _showDialog("Lỗi kết nối Server: $e");
+    // GỌI SERVICE TỪ THƯ MỤC SERVICES
+    final result = await RegisterService.registerUser(
+      fullname: _nameController.text,
+      email: _emailController.text,
+      password: _passController.text,
+    );
+
+    if (!mounted) return;
+    setState(() { _isLoading = false; });
+
+    // Xử lý kết quả trả về từ Service
+    if (result['success'] == true) {
+      _showSuccessDialog();
+    } else {
+      _showErrorDialog(result['message']);
     }
   }
 
-  Future<void> login() async {
-  final response = await http.post(
-      Uri.parse('http://10.0.2.2:8080/api/register'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'fullname': _nameController.text,
-          'email': _emailController.text,
-          'password': _passController.text,
-        }),
-
-  ); // Đợi phản hồi từ server máy Leader
-
-  if (!mounted) return; // Nếu màn hình đã đóng thì dừng lại ngay
-
-  if (response.statusCode == 200) {
-    Navigator.pushReplacementNamed(context, '/home');
-  } else {
+  void _showSuccessDialog() {
     showDialog(
-      context: context, // Bây giờ context đã an toàn để sử dụng
-      builder: (ctx) => AlertDialog(
-        title: const Text("Thông báo"),
-        content: const Text("Đăng ký thất bại. Vui lòng thử lại!"),
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Chúc mừng!", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        content: const Text("Bạn đã đăng ký tài khoản thành công. Bây giờ hãy đăng nhập nhé!"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Đóng"),
-          )
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+            child: const Text("Đồng ý (OK)", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
   }
-}
 
-  // Hàm hiển thị thông báo 
-  void _showDialog(String message) {
+  void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -111,22 +93,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Tìm và thuê trọ',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF32D74B),
-                ),
-              ),
+              const Text('Tìm và thuê trọ', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF32D74B))),
               const SizedBox(height: 10),
-              const Text(
-                'Tạo tài khoản',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+              const Text('Tạo tài khoản', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 30),
               
-              // Truyền Controller vào hàm buildTextField
               _buildTextField('Họ và tên', 'Nhập họ tên', _nameController),
               const SizedBox(height: 20),
               _buildTextField('Email', 'Nhập email của bạn', _emailController),
@@ -139,15 +110,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: registerUser, // Gọi hàm xử lý đã viết ở trên
+                  onPressed: _isLoading ? null : _handleRegister, 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
+                    disabledBackgroundColor: Colors.grey[400],
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text(
-                    'Đăng ký',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                  child: _isLoading 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Đăng ký', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 25),
@@ -157,10 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Text('Đã có tài khoản? '),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Text(
-                      'Đăng nhập',
-                      style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
-                    ),
+                    child: Text('Đăng nhập', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -171,7 +139,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Cập nhật hàm build để nhận Controller
   Widget _buildTextField(String label, String hint, TextEditingController controller, {bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         TextField(
-          controller: controller, // Gán controller vào đây
+          controller: controller,
           obscureText: obscureText,
           decoration: InputDecoration(
             hintText: hint,

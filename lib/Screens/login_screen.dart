@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:apptimvahotrothuetro/Screens/register_screen.dart';
+import 'package:apptimvahotrothuetro/Screens/homepage_screen.dart';
+import '../services/login_services.dart'; // Import service mới tạo
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,40 +11,38 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controller để lấy dữ liệu từ TextField [Bài 7]
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   
-  // Tông màu xanh chủ đạo theo thiết kế mới
+  bool _isLoading = false; // Biến khóa nút chống treo
   final Color primaryGreen = const Color(0xFF32D74B);
 
-  // Hàm xử lý đăng nhập kết nối Backend [Bài 13]
-  Future<void> login() async {
+  // Xử lý đăng nhập gọi qua Service
+  Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passController.text.isEmpty) {
       _showErrorDialog("Vui lòng nhập đầy đủ email và mật khẩu!");
       return;
     }
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2:8080/api/login'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'email': _emailController.text,
-          'password': _passController.text,
-        }),
-      );
+    setState(() { _isLoading = true; });
 
-      if (response.statusCode == 200) {
-        // Đăng nhập thành công -> Điều hướng sang HomePage
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        // Thông báo lỗi bằng AlertDialog [Bài 11]
-        _showErrorDialog("Email hoặc mật khẩu không chính xác!");
-      }
-    } catch (e) {
-      _showErrorDialog("Lỗi kết nối Server: $e");
+    // Gọi API từ thư mục services
+    final result = await LoginService.loginUser(
+      email: _emailController.text,
+      password: _passController.text,
+    );
+
+    if (!mounted) return;
+    setState(() { _isLoading = false; });
+
+    if (result['success'] == true) {
+      // Đăng nhập thành công -> Vào HomePage với quyền User
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePageScreen(isGuest: false)),
+      );
+    } else {
+      _showErrorDialog(result['message']);
     }
   }
 
@@ -55,10 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         title: const Text("Thông báo"),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Đóng"),
-          )
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Đóng"))
         ],
       ),
     );
@@ -74,98 +69,55 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Tiêu đề chính [Bài 5]
-              Text(
-                'Tìm và thuê trọ',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: primaryGreen,
-                ),
-              ),
+              Text('Tìm và thuê trọ', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: primaryGreen)),
               const SizedBox(height: 10),
-              const Text(
-                'Đăng nhập',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
+              const Text('Đăng nhập', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
               const SizedBox(height: 8),
-              const Text(
-                'Chào mừng bạn quay trở lại',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
+              const Text('Chào mừng bạn quay trở lại', style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 40),
 
-              // Nhập dữ liệu [Bài 7]
               _buildTextField('Email hoặc Số điện thoại', 'Nhập email/SĐT', _emailController),
               const SizedBox(height: 20),
               _buildTextField('Mật khẩu', 'Nhập mật khẩu', _passController, obscureText: true),
               
               const SizedBox(height: 10),
-              
-              // Quên mật khẩu
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    // Logic quên mật khẩu sau này
-                  },
-                  child: Text(
-                    'Quên mật khẩu?',
-                    style: TextStyle(color: primaryGreen, fontWeight: FontWeight.w500),
-                  ),
+                  onPressed: () {},
+                  child: Text('Quên mật khẩu?', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.w500)),
                 ),
               ),
-              
               const SizedBox(height: 20),
 
-              // Nút Đăng nhập [Bài 8]
+              // Nút Đăng nhập được bảo vệ
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: login,
+                  onPressed: _isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    disabledBackgroundColor: Colors.grey[400],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Đăng nhập',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Đăng nhập', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 25),
 
-              // Chuyển sang Đăng ký [Bài 6]
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Chưa có tài khoản? '),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
                     },
-                    child: Text(
-                      'Đăng ký ngay',
-                      style: TextStyle(
-                        color: primaryGreen,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text('Đăng ký ngay', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -180,10 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -191,10 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.black38),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.grey),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.grey)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),

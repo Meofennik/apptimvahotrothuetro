@@ -1,74 +1,151 @@
-import 'package:apptimvahotrothuetro/widgets/room_grid.dart';
 import 'package:flutter/material.dart';
 import '../widgets/home_header.dart';
 import '../widgets/category_list.dart';
+import '../widgets/room_grid.dart';
 
-class HomePageScreen extends StatelessWidget {
-  const HomePageScreen({super.key});
+// Import các trang để nhúng vào Tab
+import 'notification_screen.dart';
+import 'profile_screen.dart';
+import 'login_screen.dart';
+import 'register_screen.dart';
+
+class HomePageScreen extends StatefulWidget {
+  final bool isGuest; 
+
+  const HomePageScreen({super.key, this.isGuest = false}); 
+
+  @override
+  State<HomePageScreen> createState() => _HomePageScreenState();
+}
+
+class _HomePageScreenState extends State<HomePageScreen> {
+  int _selectedIndex = 0;
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Tùy thuộc vào isGuest, ta sẽ có danh sách màn hình khác nhau
+    final List<Widget> currentScreens = widget.isGuest ? _guestScreens() : _userScreens();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: Column(
-        children: [
-          // 1. Header
-          const HomeHeader(),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 2. Danh mục
-                  const CategoryList(),
-
-                  // 3. Tiêu đề phần tin đăng
-                  _buildSectionTitle(context),
-
-                  // 4. Lưới phòng trọ
-                  const RoomGrid(), 
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+      body: currentScreens[_selectedIndex],
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // Tiêu đề
+  // DANH SÁCH MÀN HÌNH CHO USER
+  List<Widget> _userScreens() {
+    return [
+      _buildHomeContent(), 
+      const Center(child: Text("Trang Quản lý tin đăng (Đang phát triển)")),
+      NotificationScreen(), // Kéo trang Thông báo vào đây
+      ProfileScreen(),      // Kéo trang Cá nhân vào đây
+    ];
+  }
+
+  // DANH SÁCH MÀN HÌNH CHO KHÁCH (GUEST)
+  List<Widget> _guestScreens() {
+    return [
+      _buildHomeContent(), 
+      _buildGuestProfile(), // Giao diện yêu cầu đăng nhập
+    ];
+  }
+
+  Widget _buildHomeContent() {
+    return Column(
+      children: [
+        const HomeHeader(),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CategoryList(),
+                _buildSectionTitle(context),
+                const RoomGrid(), 
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGuestProfile() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.account_circle, size: 100, color: Colors.grey),
+          const SizedBox(height: 20),
+          const Text("Bạn chưa đăng nhập", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          const Text("Đăng nhập để đăng tin và lưu phòng yêu thích", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 30),
+          
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF37DD63), minimumSize: const Size(double.infinity, 50)),
+              child: const Text("Đăng nhập", style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 15),
+          
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+              },
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF37DD63)), minimumSize: const Size(double.infinity, 50)),
+              child: const Text("Đăng ký tài khoản", style: TextStyle(color: Color(0xFF37DD63), fontSize: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: const Color(0xFF37DD63),
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped,
+      items: widget.isGuest
+          ? const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: "Tài khoản"),
+            ]
+          : const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
+              BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Quản lý"),
+              BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: "Cá nhân"),
+            ],
+    );
+  }
+
   Widget _buildSectionTitle(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(15.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            "Tin đăng mới nhất",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: const Text("Xem tất cả >", style: TextStyle(color: Color(0xFF37DD63))),
-          ),
+          const Text("Tin đăng mới nhất", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          TextButton(onPressed: () {}, child: const Text("Xem tất cả >", style: TextStyle(color: Color(0xFF37DD63)))),
         ],
       ),
-    );
-  }
-
-  // Thanh điều hướng dưới cùng
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF37DD63),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
-        BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Quản lý"),
-        BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Cá nhân"),
-      ],
     );
   }
 }
