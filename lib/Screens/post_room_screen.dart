@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Nhớ thêm image_picker vào pubspec.yaml
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/auth_service.dart';
 
 class PostRoomScreen extends StatefulWidget {
   @override
@@ -10,19 +11,40 @@ class PostRoomScreen extends StatefulWidget {
 }
 
 class _PostRoomScreenState extends State<PostRoomScreen> {
-  // 1. Khai báo các Controller và biến logic
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   final _addressController = TextEditingController();
   
   final ImagePicker _picker = ImagePicker();
-  XFile? _image; // Lưu ảnh đã chọn
+  XFile? _image;
+  
+  bool _isSubmitting = false; // Biến để disable button
+  
+  // Amenities selection
+  List<String> selectedAmenities = [];
+  final List<Map<String, String>> amenitiesList = [
+    {'name': 'WiFi', 'icon': '📡'},
+    {'name': 'Điều hòa', 'icon': '❄️'},
+    {'name': 'Bếp', 'icon': '🍳'},
+    {'name': 'Phòng tắm', 'icon': '🚿'},
+    {'name': 'Giường', 'icon': '🛏️'},
+    {'name': 'Tủ quần áo', 'icon': '👔'},
+    {'name': 'Bàn làm việc', 'icon': '💼'},
+    {'name': 'Tivi', 'icon': '📺'},
+  ];
 
-  // 2. Hàm chọn ảnh từ thư viện
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _priceController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     final XFile? selected = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80, // Tối ưu dung lượng để upload nhanh hơn
+      imageQuality: 80,
     );
     if (selected != null) {
       setState(() {
@@ -31,40 +53,97 @@ class _PostRoomScreenState extends State<PostRoomScreen> {
     }
   }
 
-  // 3. Hàm gửi dữ liệu lên Backend (kết nối tới 10.0.2.2 của Thế Anh)
   Future<void> _submitPost() async {
-    if (_image == null || _titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Vui lòng chọn ảnh và nhập đủ thông tin!")),
-      );
-      return;
-    }
-
-    // Ở bước này, bạn sẽ upload ảnh lên Cloudinary trước để lấy URL
-    // Tạm thời mình giả định đã có URL hoặc gửi thông tin cơ bản
-    final url = Uri.parse('http://10.0.2.2:8080/api/add_room');
+  // Sửa dấu != thành == và thêm kiểm tra tiêu đề để chặt chẽ hơn
+  if (_image == null || 
+      _titleController.text.isEmpty || 
+      _priceController.text.isEmpty || 
+      _addressController.text.isEmpty) {
     
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Vui lòng chọn ảnh và điền đầy đủ thông tin!"), 
+        backgroundColor: Colors.red
+      ),
+    );
+    return;
+  }
+      setState(() => _isSubmitting = true);
+
     try {
+      print("🚀 Bắt đầu đăng tin...");
+      
+      // Get userId from AuthService
+      int? userId = await AuthService.getUserId();
+      if (userId == null || userId == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Lỗi: Không tìm thấy user ID"), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      
+      // Bước 1: Upload ảnh lên Cloudinary (tùy chọn)
+      String imageUrl = 'default_room_image';
+      try {
+        final imageBytes = await _image!.readAsBytes();
+        final base64Image = base64Encode(imageBytes);
+        
+        final uploadResponse = await http.post(
+          Uri.parse('http://10.0.2.2:8080/api/add_room_pro'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({'image_base64': base64Image}),
+        ).timeout(const Duration(seconds: 30));
+
+        if (uploadResponse.statusCode == 200) {
+          final uploadData = jsonDecode(uploadResponse.body);
+          imageUrl = uploadData['imageUrl'] ?? 'default_room_image';
+          print("✅ Upload ảnh thành công: $imageUrl");
+        }
+      } catch (e) {
+        print("📝 Host ảnh lên Cloudinary thất bại, dùng default image: $e");
+      }
+
+      // Bước 2: Lưu thông tin phòng vào database
       final response = await http.post(
-        url,
+        Uri.parse('http://10.0.2.2:8080/api/add_room'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          'user_id': 1, // ID người dùng hiện tại (lấy từ session login)
+          'user_id': userId,
           'title': _titleController.text,
           'price': _priceController.text,
           'address': _addressController.text,
-          'image_url': 'link_anh_tu_cloudinary', // Sẽ thay bằng URL thật sau
+          'image_url': imageUrl,
+          'amenities': selectedAmenities, // Thêm amenities vào payload
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
+        print("✅ Đăng tin thành công!");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Đăng tin thành công!")),
+          const SnackBar(content: Text("✅ Đăng tin thành công!"), backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Quay về trang trước
+        
+        // Quay về trang chủ
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      } else {
+        print("❌ Lỗi: ${response.statusCode}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Đăng tin thất bại. Vui lòng thử lại!"), backgroundColor: Colors.red),
+        );
       }
     } catch (e) {
-      print("Lỗi kết nối Backend: $e");
+      print("❌ Lỗi: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Lỗi: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -141,16 +220,58 @@ class _PostRoomScreenState extends State<PostRoomScreen> {
             
             SizedBox(height: 30),
             
-            // Nút đăng bài màu xanh lá chuẩn nhóm 6
+            // Amenities Section
+            Text(
+              "Tiện nghi phòng",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: amenitiesList.map((amenity) {
+                bool isSelected = selectedAmenities.contains(amenity['name']);
+                return FilterChip(
+                  label: Text("${amenity['icon']} ${amenity['name']}"),
+                  selected: isSelected,
+                  backgroundColor: Colors.grey[200],
+                  selectedColor: Colors.green.withOpacity(0.7),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        selectedAmenities.add(amenity['name']!);
+                      } else {
+                        selectedAmenities.remove(amenity['name']!);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            
+            SizedBox(height: 30),
+            
+            // Nút đăng bài
             ElevatedButton(
-              onPressed: _submitPost,
-              child: Text("ĐĂNG TIN NGAY", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              onPressed: _isSubmitting ? null : _submitPost,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
+                disabledBackgroundColor: Colors.grey,
                 foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 55),
+                minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text("ĐĂNG TIN NGAY", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

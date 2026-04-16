@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:apptimvahotrothuetro/Screens/register_screen.dart';
 import 'package:apptimvahotrothuetro/Screens/homepage_screen.dart';
 import '../services/login_services.dart'; // Import service mới tạo
+import '../services/auth_service.dart'; // Import AuthService
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,11 +37,31 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _isLoading = false; });
 
     if (result['success'] == true) {
-      // Đăng nhập thành công -> Vào HomePage với quyền User
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePageScreen(isGuest: false)),
+      print("✅ Login success: ${result}");
+      final userId = result['user_id'];
+      print("🔑 User ID: $userId");
+      
+      if (userId == null || userId == 0) {
+        _showErrorDialog("Lỗi: Không thể lấy ID người dùng!");
+        return;
+      }
+      
+      // Lưu dữ liệu người dùng vào shared_preferences
+      await AuthService.saveLoginData(
+        userId: userId,
+        email: _emailController.text,
+        token: result['token'],
       );
+      
+      print("💾 Saved to SharedPreferences");
+      
+      // Đăng nhập thành công -> Vào HomePage với quyền User (4 tabs)
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePageScreen(isGuest: false)),
+        );
+      }
     } else {
       _showErrorDialog(result['message']);
     }

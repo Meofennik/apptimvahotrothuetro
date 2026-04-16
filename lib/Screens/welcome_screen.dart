@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:apptimvahotrothuetro/Screens/login_screen.dart';
 import 'package:apptimvahotrothuetro/Screens/register_screen.dart';
+import 'package:apptimvahotrothuetro/Screens/homepage_screen.dart';
+import 'package:apptimvahotrothuetro/services/auth_service.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,9 +105,17 @@ class WelcomeScreen extends StatelessWidget {
 
                 // Tiếp tục với tư cách khách
                 TextButton(
-                  onPressed: () {
-                    // Điều hướng sang HomePage mà không cần đăng nhập
-                    Navigator.pushReplacementNamed(context, '/home');
+                  onPressed: () async {
+                    // Thiết lập guest mode và lưu vào shared_preferences
+                    await AuthService.setGuestMode();
+                    if (mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomePageScreen(isGuest: true),
+                        ),
+                      );
+                    }
                   },
                   child: const Text(
                     'Tiếp tục với tư cách khách',

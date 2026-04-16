@@ -1,27 +1,46 @@
 class RoomModel {
   final int id;
-  final String imageUrl;
+  final int userId;
+  final String title;
   final String price;
   final String address;
-  final String title;
+  final String imageUrl;
+  final String? description;
+  final String? status;
 
   RoomModel({
     required this.id,
-    required this.imageUrl,
-    required this.price,
+    required this.userId,
     required this.title,
-    this.address = 'Gia Lâm',
+    required this.price,
+    required this.address,
+    required this.imageUrl,
+    this.description,
+    this.status,
   });
 
-  // Hàm quan trọng để nhận dữ liệu từ API server.dart 
   factory RoomModel.fromJson(Map<String, dynamic> json) {
     return RoomModel(
-      id: json['id'],
-      title: json['title'] ?? 'Không có tiêu đề',
-      // Nếu thumbnail null thì dùng ảnh mặc định
-      imageUrl: json['thumbnail'] ?? 'https://via.placeholder.com/100', 
-      price: "${json['price']} VNĐ",
-      address: json['address'] ?? 'Gia Lâm',
+      id: int.parse(json['id'].toString()),
+      userId: int.parse(json['user_id'].toString()),
+      title: json['title'] ?? '',
+      price: "${json['price'] ?? 0} VND",
+      address: json['address'] ?? '',
+      imageUrl: json['description'] ?? json['thumbnail'] ?? 'https://via.placeholder.com/100',
+      description: json['description'],
+      status: json['status'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'price': price,
+      'address': address,
+      'description': description,
+      'status': status,
+    };
   }
 }

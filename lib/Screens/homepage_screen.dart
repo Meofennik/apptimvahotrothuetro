@@ -84,10 +84,10 @@ class _HomePageScreenState extends State<HomePageScreen> {
         children: [
           const Icon(Icons.account_circle, size: 100, color: Colors.grey),
           const SizedBox(height: 20),
-          const Text("Bạn chưa đăng nhập", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text("Bạn chưa có tài khoản", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 10),
-          const Text("Đăng nhập để đăng tin và lưu phòng yêu thích", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 30),
+          const Text("Đăng nhập để đăng tin và lưu phòng yêu thích", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 14)),
+          const SizedBox(height: 40),
           
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -95,8 +95,8 @@ class _HomePageScreenState extends State<HomePageScreen> {
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF37DD63), minimumSize: const Size(double.infinity, 50)),
-              child: const Text("Đăng nhập", style: TextStyle(color: Colors.white, fontSize: 16)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF37DD63), minimumSize: const Size(double.infinity, 55)),
+              child: const Text("Đăng nhập", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 15),
@@ -107,8 +107,11 @@ class _HomePageScreenState extends State<HomePageScreen> {
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
               },
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF37DD63)), minimumSize: const Size(double.infinity, 50)),
-              child: const Text("Đăng ký tài khoản", style: TextStyle(color: Color(0xFF37DD63), fontSize: 16)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF37DD63), width: 2),
+                minimumSize: const Size(double.infinity, 55),
+              ),
+              child: const Text("Đăng ký tài khoản", style: TextStyle(color: Color(0xFF37DD63), fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ],

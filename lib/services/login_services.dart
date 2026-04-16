@@ -18,7 +18,16 @@ class LoginService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'user': data['user']};
+        print("📥 Backend response: $data");
+        // Trả về đầy đủ dữ liệu user
+        return {
+          'success': true,
+          'user_id': data['user']['id'] ?? 0,
+          'email': data['user']['email'] ?? email,
+          'fullname': data['user']['fullname'] ?? '',
+          'token': data['token'],
+          'message': 'Đăng nhập thành công!'
+        };
       } else {
         return {'success': false, 'message': 'Email hoặc mật khẩu không chính xác!'};
       }

@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'Screens/welcome_screen.dart';
+import 'Screens/auth_wrapper.dart';
 import 'Screens/login_screen.dart';
 import 'Screens/register_screen.dart';
 import 'Screens/homepage_screen.dart';
 import 'models/room_model.dart';
-import 'widgets/room_card.dart'; 
+import 'widgets/room_card.dart';
+import 'services/auth_service.dart';
 
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -22,11 +26,11 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
         primaryColor: const Color(0xFF37DD63), 
       ),
-      home: const WelcomeScreen(), 
+      home: const AuthWrapper(), 
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomePageScreen(),
+        '/home': (context) => const HomePageScreen(isGuest: false),
       },
     );
   }
@@ -60,29 +64,42 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: const Color(0xFF32D74B), // Màu xanh thống nhất thiết kế
         centerTitle: true,
       ),
-      body: FutureBuilder<List<RoomModel>>(
-        future: fetchRooms(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: FutureBuilder<int?>(
+        future: AuthService.getUserId(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasData) {
-            return ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final room = snapshot.data![index];
-                return RoomCard(
-                  imageUrl: room.imageUrl,
-                  price: room.price,
-                  address: room.address, 
-                  title: room.title,
-                );
-              },
-            );
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Lỗi: ${snapshot.error}"));
           }
-          return const Center(child: Text("Không có dữ liệu"));
+          
+          final userId = userSnapshot.data ?? 0;
+          
+          return FutureBuilder<List<RoomModel>>(
+            future: fetchRooms(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasData) {
+                return ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final room = snapshot.data![index];
+                    return RoomCard(
+                      roomId: room.id,
+                      userId: userId,
+                      imageUrl: room.imageUrl,
+                      price: room.price,
+                      address: room.address, 
+                      title: room.title,
+                    );
+                  },
+                );
+              } else if (snapshot.hasError) {
+                return Center(child: Text("Lỗi: ${snapshot.error}"));
+              }
+              return const Center(child: Text("Không có dữ liệu"));
+            },
+          );
         },
       ),
     );

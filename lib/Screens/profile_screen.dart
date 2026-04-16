@@ -1,17 +1,46 @@
 import 'package:apptimvahotrothuetro/Screens/post_room_screen.dart';
 import 'package:apptimvahotrothuetro/services/user_services.dart';
+import 'package:apptimvahotrothuetro/services/auth_service.dart';
+import 'package:apptimvahotrothuetro/Screens/welcome_screen.dart';
 import 'package:flutter/material.dart';// Import trang đăng tin
 
-class ProfileScreen extends StatelessWidget {
-  final int userId = 1; // Trong thực tế bạn lấy ID này từ LoginService sau khi đăng nhập thành công
+class ProfileScreen extends StatefulWidget {
+  final int userId;
+
+  const ProfileScreen({Key? key, this.userId = 1}) : super(key: key);
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: UserService.getProfile(userId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator());
-        final user = snapshot.data ?? {};
+    return FutureBuilder<int?>(
+      future: AuthService.getUserId(),
+      builder: (context, userIdSnapshot) {
+        if (userIdSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: Color(0xFF32D74B)),
+          );
+        }
+        
+        final userId = userIdSnapshot.data ?? 0;
+        
+        if (userId == 0) {
+          return Center(child: Text("Lỗi: Không tìm thấy user"));
+        }
+        
+        return FutureBuilder<Map<String, dynamic>>(
+          future: UserService.getProfile(userId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(color: Color(0xFF32D74B)),
+              );
+            }
+            
+            final user = snapshot.data ?? {};
 
         return Scaffold(
           body: Column(
@@ -47,11 +76,34 @@ class ProfileScreen extends StatelessWidget {
                   child: const Text("ĐĂNG TIN MỚI", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: OutlinedButton(
+                  onPressed: () async {
+                    // Logout
+                    await AuthService.logout();
+                    if (context.mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: const Text("ĐĂNG XUẤT", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
+              ),
               const SizedBox(height: 20),
             ],
           ),
         );
-      },
+            }
+        );
+        }
     );
   }
 }
