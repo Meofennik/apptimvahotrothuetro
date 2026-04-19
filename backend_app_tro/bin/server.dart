@@ -144,14 +144,28 @@ void main() async {
   });
 
   // API Lấy tất cả bài đăng
-  router.get('/api/rooms', (shelf.Request request) async {
+ router.get('/api/rooms', (shelf.Request request) async {
     try {
       final conn = await getDbConnection();
       
-      final results = await conn.execute(
-        "SELECT id, title, price, address, description FROM rooms ORDER BY created_at DESC"
-      );
+      // 1. Lấy user_id từ URL xuống 
+      final queryParams = request.url.queryParameters;
+      final userIdStr = queryParams['user_id'];
       
+      // Nếu khách chưa đăng nhập lướt app, mặc định gán userId = 0 (để không cái tim nào sáng lên)
+      final userId = userIdStr != null ? int.tryParse(userIdStr) : 0; 
+      final results = await conn.execute(
+        """
+        SELECT r.id, r.title, r.price, r.address, r.description,
+               (SELECT image_url FROM room_images WHERE room_id = r.id LIMIT 1) AS cover_image,
+               IF(f.id IS NOT NULL, 1, 0) AS is_favorited 
+        FROM rooms r 
+        LEFT JOIN favorites f ON r.id = f.room_id AND f.user_id = :uid 
+        ORDER BY r.created_at DESC
+        """,
+        {"uid": userId} // Truyền ID user để SQL đối chiếu
+      );
+
       final rooms = results.rows.map((row) {
         final assoc = row.assoc();
         return {
@@ -159,8 +173,9 @@ void main() async {
           "title": assoc['title'],
           "price": assoc['price'],
           "address": assoc['address'],
-          "description": assoc['description'], // Ảnh URL được lưu ở đây
-          "thumbnail": assoc['description'], // Thêm field này để kompatibel
+          "description": assoc['description'], 
+          "image_url": assoc['cover_image'], 
+          "is_favorited": assoc['is_favorited'], 
         };
       }).toList();
       
@@ -234,57 +249,59 @@ void main() async {
     }
   });
 
-  // API Đăng tin (Lưu vào Database)
+  // API Đăng tin (rooms, room_images, amenities)
   router.post('/api/add_room', (shelf.Request request) async {
     try {
       final payload = jsonDecode(await request.readAsString());
-      print("Received payload: $payload");
-      
       final conn = await getDbConnection();
       
-      // Insert room - sử dụng cột đúng từ database
+      // Xử lý danh sách ảnh từ Frontend gửi lên
+      final List dynamicImages = payload['images'] ?? [];
+      
+      // BƯỚC 1: Lưu thông tin chung vào bảng rooms (KHÔNG CẦN CỘT image_url)
       await conn.execute(
-        "INSERT INTO rooms (user_id, title, price, address, description) VALUES (:uid, :t, :p, :a, :desc)",
+        "INSERT INTO rooms (user_id, title, price, address, description) "
+        "VALUES (:uid, :t, :p, :a, :desc)",
         {
           "uid": payload['user_id'],
           "t": payload['title'],
           "p": payload['price'],
           "a": payload['address'],
-          "desc": payload['image_url'] ?? 'default_image' // Lưu image_url vào description tạm
+          "desc": payload['description'] // Đây là văn bản mô tả thật
         },
       );
-      print("Room inserted successfully");
       
-      // Get the inserted room ID
+      // Lấy ID của phòng vừa tạo
       final roomIdResult = await conn.execute("SELECT LAST_INSERT_ID() as id");
       final roomId = roomIdResult.rows.first.assoc()['id'];
-      print("New room ID: $roomId");
       
-      // Insert amenities if provided (với error handling)
+      // BƯỚC 2: Lưu TOÀN BỘ ẢNH vào bảng room_images
+      if (dynamicImages.isNotEmpty) {
+        for (var imgUrl in dynamicImages) {
+          await conn.execute(
+            "INSERT INTO room_images (room_id, image_url) VALUES (:rid, :img)",
+            {"rid": roomId, "img": imgUrl.toString()}
+          );
+        }
+      }
+      
+      // BƯỚC 3: Lưu các TIỆN ÍCH vào bảng amenities
       if (payload['amenities'] != null && payload['amenities'] is List) {
-        try {
-          for (var amenity in payload['amenities']) {
-            await conn.execute(
-              "INSERT INTO amenities (room_id, name) VALUES (:rid, :name)",
-              {"rid": roomId, "name": amenity},
-            );
-          }
-          print("Saved ${payload['amenities'].length} amenities for room $roomId");
-        } catch (amenityError) {
-          print("Warning saving amenities: $amenityError (continuing)");
+        for (var amenityName in payload['amenities']) {
+          await conn.execute(
+            "INSERT INTO amenities (room_id, name) VALUES (:rid, :name)",
+            {"rid": roomId, "name": amenityName},
+          );
         }
       }
       
       await conn.close();
-      print("Post created successfully - User: ${payload['user_id']}, Room ID: $roomId");
-      
       return shelf.Response.ok(
-        jsonEncode({"success": true, "message": "Đăng tin thành công!", "room_id": roomId}),
+        jsonEncode({"success": true, "message": "Đăng tin thành công!"}),
         headers: _jsonHeaders,
       );
     } catch (e) {
-      print("Error creating post: $e");
-      print("Stack trace: ${StackTrace.current}");
+      print("Lỗi đăng tin: $e");
       return shelf.Response.internalServerError(
           body: jsonEncode({"success": false, "error": e.toString()}),
           headers: _jsonHeaders);
@@ -317,6 +334,27 @@ void main() async {
     }
   });
 
+  // API Lấy danh sách ảnh phụ của một phòng
+  router.get('/api/room_images/<roomId>', (shelf.Request request, String roomId) async {
+    try {
+      final conn = await getDbConnection();
+      final results = await conn.execute(
+        "SELECT image_url FROM room_images WHERE room_id = :rid",
+        {"rid": int.parse(roomId)}
+      );
+      
+      List<String> images = results.rows.map((row) => row.assoc()['image_url'].toString()).toList();
+      await conn.close();
+      
+      return shelf.Response.ok(
+        jsonEncode({"success": true, "images": images}),
+        headers: _jsonHeaders,
+      );
+    } catch (e) {
+      return shelf.Response.internalServerError(body: jsonEncode({"error": e.toString()}), headers: _jsonHeaders);
+    }
+  });
+  
   // API Lấy danh sách tiện nghi của phòng
   router.get('/api/amenities/<roomId>', (shelf.Request request, String roomId) async {
     try {
@@ -442,7 +480,13 @@ void main() async {
       final conn = await getDbConnection();
       
       final results = await conn.execute(
-        "SELECT r.* FROM rooms r JOIN favorites f ON r.id = f.room_id WHERE f.user_id = :uid",
+        """
+        SELECT r.id, r.title, r.price, r.address, r.description,
+               (SELECT image_url FROM room_images WHERE room_id = r.id LIMIT 1) AS cover_image
+        FROM rooms r 
+        JOIN favorites f ON r.id = f.room_id 
+        WHERE f.user_id = :uid
+        """,
         {"uid": id},
       );
       
@@ -455,7 +499,7 @@ void main() async {
           "title": data["title"],
           "price": data["price"],
           "address": data["address"],
-          "image_url": data["image_url"],
+          "image_url": data["cover_image"],
           "room_id": data["id"]
         };
       }).toList();
@@ -492,8 +536,166 @@ void main() async {
     }
   });
 
+  // API Thả tim / Bỏ tim phòng trọ
+  router.post('/api/toggle_favorite', (shelf.Request request) async {
+    try {
+      final payload = jsonDecode(await request.readAsString());
+      final userId = payload['user_id'];
+      final roomId = payload['room_id'];
+
+      final conn = await getDbConnection();
+
+      // 1. Kiểm tra xem user này đã thả tim phòng này chưa
+      final check = await conn.execute(
+        "SELECT id FROM favorites WHERE user_id = :uid AND room_id = :rid",
+        {"uid": userId, "rid": roomId},
+      );
+
+      bool isFavorited = false;
+
+      if (check.rows.isNotEmpty) {
+        // 2. Nếu đã có tim -> Xóa đi (Bỏ yêu thích)
+        await conn.execute(
+          "DELETE FROM favorites WHERE user_id = :uid AND room_id = :rid",
+          {"uid": userId, "rid": roomId},
+        );
+        isFavorited = false;
+      } else {
+        // 3. Nếu chưa có tim -> Thêm mới (Yêu thích)
+        await conn.execute(
+          "INSERT INTO favorites (user_id, room_id) VALUES (:uid, :rid)",
+          {"uid": userId, "rid": roomId},
+        );
+        isFavorited = true;
+      }
+
+      await conn.close();
+
+      return shelf.Response.ok(
+        jsonEncode({
+          "success": true,
+          "is_favorited": isFavorited,
+          "message": isFavorited ? "Đã thêm vào yêu thích" : "Đã bỏ yêu thích"
+        }),
+        headers: _jsonHeaders,
+      );
+    } catch (e) {
+      print("Lỗi toggle_favorite: $e");
+      return shelf.Response.internalServerError(
+        body: jsonEncode({"success": false, "error": e.toString()}),
+        headers: _jsonHeaders,
+      );
+    }
+  });
+
+  // API Lấy danh sách phòng của user (Quản lý tin)
+  router.get('/api/user_rooms/<userId>', (shelf.Request request, String userId) async {
+    try {
+      final conn = await getDbConnection();
+      final uid = int.parse(userId);
+      
+      final results = await conn.execute(
+        """
+        SELECT r.id, r.title, r.price, r.address, r.description, r.created_at,
+               (SELECT image_url FROM room_images WHERE room_id = r.id LIMIT 1) AS cover_image
+        FROM rooms r 
+        WHERE r.user_id = :uid 
+        ORDER BY r.created_at DESC
+        """,
+        {"uid": uid}
+      );
+      
+      final rooms = results.rows.map((row) {
+        final assoc = row.assoc();
+        return {
+          "id": assoc['id'],
+          "title": assoc['title'],
+          "price": assoc['price'],
+          "address": assoc['address'],
+          "description": assoc['description'],
+          "image_url": assoc['cover_image'],
+          "created_at": assoc['created_at']
+        };
+      }).toList();
+      
+      await conn.close();
+      print("Fetched ${rooms.length} user rooms for user $uid");
+      
+      return shelf.Response.ok(
+        jsonEncode(rooms),
+        headers: _jsonHeaders,
+      );
+    } catch (e) {
+      print("Error fetching user rooms: $e");
+      return shelf.Response.internalServerError(
+          body: jsonEncode({"error": e.toString()}),
+          headers: _jsonHeaders);
+    }
+  });
+
+  // API Cập nhật thông tin phòng
+  router.post('/api/update_room', (shelf.Request request) async {
+    try {
+      final payload = jsonDecode(await request.readAsString());
+      final conn = await getDbConnection();
+      
+      final roomId = payload['room_id'];
+      final userId = payload['user_id'];
+      final title = payload['title'];
+      final price = payload['price'];
+      final address = payload['address'];
+      final description = payload['description'];
+      
+      // Verify ownership
+      final checkResults = await conn.execute(
+        "SELECT user_id FROM rooms WHERE id = :id",
+        {"id": roomId}
+      );
+      
+      if (checkResults.rows.isEmpty) {
+        await conn.close();
+        return shelf.Response(404,
+            body: jsonEncode({"success": false, "message": "Room not found"}),
+            headers: _jsonHeaders);
+      }
+      
+      final ownerRow = checkResults.rows.first.assoc();
+      final ownerId = ownerRow['user_id'];
+      
+      if (ownerId.toString() != userId.toString()) {
+        await conn.close();
+        return shelf.Response(403,
+            body: jsonEncode({"success": false, "message": "Unauthorized"}),
+            headers: _jsonHeaders);
+      }
+      
+      // Update room
+      await conn.execute(
+        "UPDATE rooms SET title = :t, price = :p, address = :a, description = :d WHERE id = :id",
+        {
+          "t": title,
+          "p": price,
+          "a": address,
+          "d": description,
+          "id": roomId
+        }
+      );
+      
+      await conn.close();
+      print("Room updated successfully - Room ID: $roomId");
+      
+      return shelf.Response.ok(
+        jsonEncode({"success": true, "message": "Cập nhật tin thành công!", "room_id": roomId}),
+        headers: _jsonHeaders,
+      );
+    } catch (e) {
+      print("Error updating room: $e");
+      return shelf.Response.internalServerError(
+          body: jsonEncode({"success": false, "error": e.toString()}),
+          headers: _jsonHeaders);
+    }
+  });
+
   final server = await shelf_io.serve(router, '0.0.0.0', 8080);
   print('Server running at HTTP://${server.address.host}:${server.port}');
 }
-
-

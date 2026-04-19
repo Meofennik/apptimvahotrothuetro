@@ -8,6 +8,7 @@ import 'notification_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
+import 'management_screen.dart';
 
 class HomePageScreen extends StatefulWidget {
   final bool isGuest; 
@@ -20,6 +21,16 @@ class HomePageScreen extends StatefulWidget {
 
 class _HomePageScreenState extends State<HomePageScreen> {
   int _selectedIndex = 0;
+  
+  // 1. Thêm biến để lưu trữ cố định danh sách các màn hình
+  late List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    // 2. Khởi tạo danh sách màn hình 1 lần duy nhất khi mở App
+    _screens = widget.isGuest ? _guestScreens() : _userScreens();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -29,12 +40,15 @@ class _HomePageScreenState extends State<HomePageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Tùy thuộc vào isGuest, ta sẽ có danh sách màn hình khác nhau
-    final List<Widget> currentScreens = widget.isGuest ? _guestScreens() : _userScreens();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: currentScreens[_selectedIndex],
+      
+      // 3. SỬ DỤNG IndexedStack ĐỂ GIỮ NGUYÊN TRẠNG THÁI CÁC TAB
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
+      
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -43,9 +57,9 @@ class _HomePageScreenState extends State<HomePageScreen> {
   List<Widget> _userScreens() {
     return [
       _buildHomeContent(), 
-      const Center(child: Text("Trang Quản lý tin đăng (Đang phát triển)")),
-      NotificationScreen(), // Kéo trang Thông báo vào đây
-      ProfileScreen(),      // Kéo trang Cá nhân vào đây
+      const ManagementScreen(),
+      NotificationScreen(), 
+      ProfileScreen(),      
     ];
   }
 
@@ -53,7 +67,7 @@ class _HomePageScreenState extends State<HomePageScreen> {
   List<Widget> _guestScreens() {
     return [
       _buildHomeContent(), 
-      _buildGuestProfile(), // Giao diện yêu cầu đăng nhập
+      _buildGuestProfile(), 
     ];
   }
 

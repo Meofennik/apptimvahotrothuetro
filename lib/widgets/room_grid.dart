@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:apptimvahotrothuetro/services/auth_service.dart';
+import 'package:apptimvahotrothuetro/Screens/room_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -46,6 +48,21 @@ class _RoomGridState extends State<RoomGrid> {
       print("[ERROR] Unexpected error: $e");
       throw Exception('Error fetching rooms: $e');
     }
+  }
+
+// Hàm chuyển đổi "1000000.00" thành "1.000.000"
+  String formatPrice(String? priceRaw) {
+    if (priceRaw == null || priceRaw.isEmpty) return '0';  
+    // Ép kiểu về double trước để xử lý phần ".00" 
+    double? priceDouble = double.tryParse(priceRaw.toString());
+    if (priceDouble == null) return '0';  
+    // Chuyển sang số nguyên 
+    int priceInt = priceDouble.toInt(); 
+    // Dùng Regex để chèn dấu chấm vào mỗi 3 chữ số
+    return priceInt.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.'
+    );
   }
 
   @override
@@ -161,77 +178,88 @@ class _RoomGridState extends State<RoomGrid> {
     // Rất thông minh: Dự phòng việc bạn lưu link nhầm vào description lúc trước
     final String? imageUrl = room['image_url'] ?? room['description'] ?? room['thumbnail'];
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Phần Hình ảnh
-          Expanded(
-            flex: 3,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                color: Colors.grey[300],
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: _buildImageWidget(imageUrl),
+    return GestureDetector(
+      onTap: () {
+        print("[DEBUG] Tapped room: $title");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RoomDetailScreen(room: room),
+          ),
+        );
+      },
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Phần Hình ảnh
+            Expanded(
+              flex: 3,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  color: Colors.grey[300],
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: _buildImageWidget(imageUrl),
+                ),
               ),
             ),
-          ),
 
-          // Phần Thông tin
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+            // Phần Thông tin
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '$price VNĐ',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                    Text(
+                      '$price VNĐ',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, size: 12, color: Colors.red),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          address,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 12, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -276,6 +304,196 @@ class _RoomGridState extends State<RoomGrid> {
               color: Colors.grey,
             ),
           ),
+        );
+      },
+    );
+  }
+
+  
+}
+
+class RoomCardWidget extends StatefulWidget {
+  final dynamic room;
+  const RoomCardWidget({super.key, required this.room});
+
+  @override
+  State<RoomCardWidget> createState() => _RoomCardWidgetState();
+}
+
+class _RoomCardWidgetState extends State<RoomCardWidget> {
+  bool _isFavorite = false;
+  bool _isLoadingFav = false;
+
+  @override
+  @override
+void initState() {
+  super.initState();
+  _isFavorite = (widget.room['is_favorited'] == 1); 
+}
+
+  Future<void> _toggleFavorite() async {
+    int? currentUserId = await AuthService.getUserId();
+
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bạn cần đăng nhập để thả tim!")),
+      );
+      return;
+    }
+
+    // 2. Đổi màu trái tim ngay lập tức để app cảm giác mượt mà (Optimistic UI)
+    setState(() {
+      _isFavorite = !_isFavorite;
+      _isLoadingFav = true;
+    });
+
+    // 3. Gọi API ngầm ở dưới background
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8080/api/toggle_favorite'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          'user_id': currentUserId,
+          'room_id': widget.room['id'],
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        // Đồng bộ lại trạng thái chính xác từ Server
+        setState(() => _isFavorite = data['is_favorited']);
+      } else {
+        // Nếu lỗi, trả lại trạng thái cũ
+        setState(() => _isFavorite = !_isFavorite);
+        print("Lỗi từ server: ${data['message']}");
+      }
+    } catch (e) {
+      setState(() => _isFavorite = !_isFavorite);
+      print("Lỗi kết nối: $e");
+    } finally {
+      setState(() => _isLoadingFav = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = widget.room['title'] ?? 'Đang cập nhật...';
+    final String price = widget.room['price']?.toString() ?? '0';
+    final String address = widget.room['address'] ?? 'Đang cập nhật...';
+    final String? imageUrl = widget.room['image_url'] ?? widget.room['description'];
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // IMAGE SECTION - Có thêm Nút Tim Đè Lên
+          Expanded(
+            flex: 3,
+            child: Stack(
+              children: [
+                // Ảnh nền
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: Colors.grey[300],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: _buildImageWidget(imageUrl),
+                  ),
+                ),
+                
+                // Nút Trái Tim ở góc trên bên phải
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: GestureDetector(
+                    onTap: _isLoadingFav ? null : _toggleFavorite,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white.withOpacity(0.8),
+                      radius: 16,
+                      child: Icon(
+                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: _isFavorite ? Colors.red : Colors.grey,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // INFO SECTION
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '$price VNĐ',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 12, color: Colors.red),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          address,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(child: Icon(Icons.image_not_supported_outlined, size: 50, color: Colors.grey)),
+      );
+    }
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            color: const Color(0xFF32D74B),
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Center(child: Icon(Icons.broken_image_outlined, size: 50, color: Colors.grey)),
         );
       },
     );
