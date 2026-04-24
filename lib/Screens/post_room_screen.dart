@@ -41,19 +41,18 @@ class _PostRoomScreenState extends State<PostRoomScreen> {
   }
 
   Future<void> _pickImages() async {
-    try {
-      final List<XFile> selectedImages = await _picker.pickMultiImage(
-      );
+  try {
+    final List<XFile> selectedImages = await _picker.pickMultiImage();
 
-      if (selectedImages.isNotEmpty) {
-        setState(() {
-          _images.addAll(selectedImages); // Thêm ảnh mới vào danh sách
-        });
-      }
-    } catch (e) {
-      print("Lỗi khi chọn ảnh: $e");
+    if (selectedImages.isNotEmpty) {
+      setState(() {
+        _images.addAll(selectedImages); 
+      });
     }
+  } catch (e) {
+    print("Lỗi chọn ảnh: $e");
   }
+}
 
   void _removeImage(int index) {
     setState(() {

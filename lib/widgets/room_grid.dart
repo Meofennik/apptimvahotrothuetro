@@ -172,7 +172,7 @@ class _RoomGridState extends State<RoomGrid> {
   /// Xây dựng thẻ phòng
   Widget _buildRoomCard(dynamic room) {
     final String title = room['title'] ?? 'Đang cập nhật...';
-    final String price = room['price']?.toString() ?? '0';
+    final String price = formatPrice(room['price']?.toString());
     final String address = room['address'] ?? 'Đang cập nhật...';
     
     // Rất thông minh: Dự phòng việc bạn lưu link nhầm vào description lúc trước

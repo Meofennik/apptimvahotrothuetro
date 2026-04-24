@@ -72,7 +72,7 @@ class _RoomCardState extends State<RoomCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Hình ảnh trọ với nút yêu thích
+          // Hình ảnh trọ với nút yêu thích
           Stack(
             children: [
               ClipRRect(
@@ -123,7 +123,7 @@ class _RoomCardState extends State<RoomCard> {
             ],
           ),
 
-          // 2. Chi tiết tin đăng
+          // Chi tiết tin đăng
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Column(

@@ -41,16 +41,18 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
   }
 
   /// Initialize screen - load user ID and amenities
-  Future<void> _initializeScreen() async {
+Future<void> _initializeScreen() async {
     _currentUserId = await AuthService.getUserId();
-
-    // Initialize controllers with room data
+    // Làm sạch giá tiền: Ép kiểu để bỏ đuôi .00
+    String rawPrice = widget.room['price']?.toString() ?? '';
+    double? priceDouble = double.tryParse(rawPrice);
+    if (priceDouble != null) {
+      rawPrice = priceDouble.toInt().toString(); 
+    }
     _titleController = TextEditingController(text: widget.room['title'] ?? '');
-    _priceController = TextEditingController(text: widget.room['price']?.toString() ?? '');
+    _priceController = TextEditingController(text: rawPrice); 
     _addressController = TextEditingController(text: widget.room['address'] ?? '');
     _descriptionController = TextEditingController(text: widget.room['description'] ?? '');
-
-    // Fetch amenities for this room
     await _fetchAmenities();
   }
 
@@ -84,9 +86,12 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
     }
   }
 
-  Future<void> _submitUpdate() async {
+ Future<void> _submitUpdate() async {
+    // Tự động lọc bỏ các dấu chấm, phẩy hoặc khoảng trắng trong giá tiền
+    String cleanPrice = _priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+
     if (_titleController.text.isEmpty ||
-        _priceController.text.isEmpty ||
+        cleanPrice.isEmpty || // Đã sửa
         _addressController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -100,7 +105,6 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      //  ép kiểu sang int
       final int roomId = int.tryParse(widget.room['id'].toString()) ?? 0;
       print("[DEBUG] Updating room ID: $roomId");
 
@@ -113,7 +117,7 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
               'room_id': roomId,
               'user_id': _currentUserId,
               'title': _titleController.text,
-              'price': _priceController.text,
+              'price': cleanPrice, // GỬI GIÁ TIỀN ĐÃ LÀM SẠCH LÊN SQL
               'address': _addressController.text,
               'description': _descriptionController.text,
             }),

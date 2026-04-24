@@ -18,8 +18,8 @@ Future<MySQLConnection> getDbConnection() async {
     final conn = await MySQLConnection.createConnection(
       host: "127.0.0.1",
       port: 3306,
-      userName: "root",
-      password: "",
+      userName: "theanh",
+      password: "123456",
       databaseName: "apphotrotimvathuetro",
       secure: false,
     );
@@ -255,10 +255,9 @@ void main() async {
       final payload = jsonDecode(await request.readAsString());
       final conn = await getDbConnection();
       
-      // Xử lý danh sách ảnh từ Frontend gửi lên
+      // Lấy danh sách link ảnh từ Cloudinary mà App gửi lên
       final List dynamicImages = payload['images'] ?? [];
-      
-      // BƯỚC 1: Lưu thông tin chung vào bảng rooms (KHÔNG CẦN CỘT image_url)
+
       await conn.execute(
         "INSERT INTO rooms (user_id, title, price, address, description) "
         "VALUES (:uid, :t, :p, :a, :desc)",
@@ -267,25 +266,23 @@ void main() async {
           "t": payload['title'],
           "p": payload['price'],
           "a": payload['address'],
-          "desc": payload['description'] // Đây là văn bản mô tả thật
+          "desc": payload['description']
         },
       );
       
-      // Lấy ID của phòng vừa tạo
+      // Lấy ID phòng vừa chèn
       final roomIdResult = await conn.execute("SELECT LAST_INSERT_ID() as id");
       final roomId = roomIdResult.rows.first.assoc()['id'];
       
-      // BƯỚC 2: Lưu TOÀN BỘ ẢNH vào bảng room_images
-      if (dynamicImages.isNotEmpty) {
-        for (var imgUrl in dynamicImages) {
-          await conn.execute(
-            "INSERT INTO room_images (room_id, image_url) VALUES (:rid, :img)",
-            {"rid": roomId, "img": imgUrl.toString()}
-          );
-        }
+      // BƯỚC 2: Lưu toàn bộ danh sách ảnh vào bảng room_images
+      for (var imgUrl in dynamicImages) {
+        await conn.execute(
+          "INSERT INTO room_images (room_id, image_url) VALUES (:rid, :img)",
+          {"rid": roomId, "img": imgUrl.toString()}
+        );
       }
       
-      // BƯỚC 3: Lưu các TIỆN ÍCH vào bảng amenities
+      // BƯỚC 3: Lưu tiện ích
       if (payload['amenities'] != null && payload['amenities'] is List) {
         for (var amenityName in payload['amenities']) {
           await conn.execute(
@@ -307,7 +304,6 @@ void main() async {
           headers: _jsonHeaders);
     }
   });
-
   // API Xóa tin
   router.post('/api/delete_room', (shelf.Request request) async {
     try {

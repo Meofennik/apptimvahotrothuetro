@@ -45,7 +45,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         (widget.room['is_favorited'] == 1 ||
         widget.room['is_favorited'] == true);
 
-    // Mồi sẵn ảnh bìa vào danh sách để hiển thị ngay lập tức
+    // sẵn ảnh bìa vào danh sách để hiển thị luôn
     if (widget.room['image_url'] != null) {
       _albumImages.add(widget.room['image_url']);
     }
@@ -95,7 +95,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     setState(() => _isTogglingFavorite = true);
 
     try {
-      // ĐÂY LÀ DÒNG ĐÃ ĐƯỢC SỬA LỖI:
       final int roomId = int.tryParse(widget.room['id'].toString()) ?? 0;
 
       final response = await http.post(
@@ -123,7 +122,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   Future<void> _fetchAmenities() async {
     try {
-      // ĐÂY LÀ DÒNG ĐÃ ĐƯỢC SỬA LỖI:
       final int roomId = int.tryParse(widget.room['id'].toString()) ?? 0;
 
       final response = await http
@@ -207,10 +205,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 color: Colors.black.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Text(
-                "Ảnh phụ tải thêm...",
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
             ),
           ),
         ],
@@ -260,7 +254,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
               child: _buildImageSlider(),
             ),
 
-            // --- Phần text ở dưới giữ nguyên ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

@@ -16,7 +16,7 @@ class RegisterService {
           'email': email,
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 10)); // Vẫn giữ bảo vệ timeout 10s
+      ).timeout(const Duration(seconds: 10)); 
 
       if (response.statusCode == 200) {
         return {'success': true, 'message': 'Đăng ký thành công'};
